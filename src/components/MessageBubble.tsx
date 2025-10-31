@@ -1,6 +1,8 @@
 import { Bot, User, TrendingUp, PieChart, LineChart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Message = {
   role: "user" | "assistant";
@@ -63,41 +65,47 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             </div>
           )}
           
-          {/* Message content with enhanced formatting */}
-          <div className={cn(
-            "prose prose-sm max-w-none",
-            isUser ? "prose-invert" : "prose-slate dark:prose-invert"
-          )}>
-            <div className="whitespace-pre-wrap leading-relaxed">
-              {message.content.split('\n').map((line, i) => {
-                // Highlight numbers and percentages
-                const highlightedLine = line
-                  .replace(/(\d+\.?\d*%)/g, '<span class="font-bold text-accent">$1</span>')
-                  .replace(/(₹[\d,]+)/g, '<span class="font-bold text-success">$1</span>')
-                  .replace(/(\d+\.?\d*\s*CAGR)/gi, '<span class="font-bold text-primary">$1</span>');
-                
-                // Bold headers (lines ending with :)
-                if (line.trim().endsWith(':') && line.trim().length > 3) {
-                  return <p key={i} className="font-semibold text-base mt-4 mb-2" dangerouslySetInnerHTML={{ __html: highlightedLine }} />;
-                }
-                
-                // Bullet points
-                if (line.trim().startsWith('-') || line.trim().startsWith('•')) {
-                  return <li key={i} className="ml-4" dangerouslySetInnerHTML={{ __html: highlightedLine }} />;
-                }
-                
-                // Numbered lists
-                if (/^\d+\./.test(line.trim())) {
-                  return <li key={i} className="ml-4 list-decimal" dangerouslySetInnerHTML={{ __html: highlightedLine }} />;
-                }
-                
-                return line.trim() ? (
-                  <p key={i} className="mb-2" dangerouslySetInnerHTML={{ __html: highlightedLine }} />
-                ) : (
-                  <br key={i} />
-                );
-              })}
-            </div>
+          {/* Message content rendered as Markdown with GFM (tables, bold, lists) */}
+          <div
+            className={cn(
+              "prose prose-sm max-w-none leading-relaxed",
+              isUser ? "prose-invert" : "prose-slate dark:prose-invert"
+            )}
+          >
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ node, ...props }) => (
+                  <table className="table-auto w-full border-collapse" {...props} />
+                ),
+                thead: ({ node, ...props }) => (
+                  <thead className="border-b" {...props} />
+                ),
+                th: ({ node, ...props }) => (
+                  <th className="border-b px-3 py-2 text-left font-semibold" {...props} />
+                ),
+                td: ({ node, ...props }) => (
+                  <td className="border-b px-3 py-2 align-top" {...props} />
+                ),
+                ul: ({ node, ...props }) => (
+                  <ul className="list-disc pl-6" {...props} />
+                ),
+                ol: ({ node, ...props }) => (
+                  <ol className="list-decimal pl-6" {...props} />
+                ),
+                strong: ({ node, ...props }) => (
+                  <strong className="font-semibold" {...props} />
+                ),
+                h3: ({ node, ...props }) => (
+                  <h3 className="mt-4 mb-2 text-base font-semibold" {...props} />
+                ),
+                p: ({ node, ...props }) => (
+                  <p className="mb-2" {...props} />
+                ),
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
           </div>
         </div>
       </Card>

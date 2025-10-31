@@ -2,10 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, ArrowLeft, Sparkles, TrendingUp } from "lucide-react";
+import { Send, ArrowLeft, Sparkles } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { MessageBubble } from "@/components/MessageBubble";
-import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { toast } from "sonner";
 
 type Message = {
@@ -15,6 +14,7 @@ type Message = {
 
 const Chat = () => {
   const navigate = useNavigate();
+  const STORAGE_KEY = "finmate_chat_messages";
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -23,12 +23,37 @@ const Chat = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
+  // Removed sidebar analytics; CTA will show after user's query receives a reply
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Restore messages when returning from analysis or page reload
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist messages on change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      // best-effort persistence
+    }
   }, [messages]);
 
   const sendMessage = async () => {
@@ -87,7 +112,6 @@ const Chat = () => {
 
           const jsonStr = line.slice(6).trim();
           if (jsonStr === "[DONE]") {
-            setShowAnalytics(true);
             continue;
           }
 
@@ -145,15 +169,6 @@ const Chat = () => {
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-sm font-medium text-success">AI Active</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setShowAnalytics(!showAnalytics)}
-            >
-              <TrendingUp className="w-4 h-4" />
-              <span className="hidden md:inline">Analytics</span>
-            </Button>
           </div>
         </div>
       </header>
@@ -182,6 +197,17 @@ const Chat = () => {
                       <span className="text-sm text-muted-foreground">Analyzing financial data...</span>
                     </div>
                   </div>
+                </div>
+              )}
+              {!isLoading && (messages.length > 0 && messages[messages.length-1].role === "assistant" && messages.some(m => m.role === "user")) && (
+                <div className="flex justify-center">
+                  <Button
+                    className="glow"
+                    variant="default"
+                    onClick={() => navigate('/analysis', { state: { messages } })}
+                  >
+                    View world‑class analysis →
+                  </Button>
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -219,10 +245,7 @@ const Chat = () => {
           </div>
         </div>
 
-        {/* Analytics panel */}
-        {showAnalytics && (
-          <AnalyticsPanel onClose={() => setShowAnalytics(false)} />
-        )}
+        {/* Sidebar analytics removed */}
       </div>
     </div>
   );
